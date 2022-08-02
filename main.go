@@ -50,9 +50,9 @@ func ConnectDatabase() {
 }
 
 // Helper function
-func containsBook(books []Book, id int) bool {
+func containsBook(books []Book, id uint) bool {
 	for _, book := range books {
-		if book.ID == id {
+		if book.ID == uint(id) {
 			return true
 		}
 	}
@@ -88,7 +88,7 @@ func listBookEndpoint(ctx *gin.Context) {
 
 	// Find correct item
 	for _, book := range books {
-		if book.ID == id {
+		if book.ID == uint(id) {
 			ctx.IndentedJSON(http.StatusOK, book)
 			return
 		}
@@ -131,44 +131,9 @@ func listShelvesEndpoint(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, shelves)
 }
 
-// Temporary data seed for testing purposes
-func seedData() {
-	b1 := Book{
-		ID:        1,
-		Title:     "Erstes Buch",
-		Author:    "Max Mustermann",
-		Language:  "Deutsch",
-		Category:  "Roman",
-		ISBN10:    "1234567890",
-		ISBN13:    "1234567890123",
-		PageCount: 500,
-		Rating:    1,
-	}
-	b2 := Book{ID: 3, Title: "Animal"}
-	b3 := Book{ID: 5, Title: "Ein Sommer in Nienburg"}
-	books = append(books, b1, b2, b3)
-	shelves = append(shelves, Shelve{
-		ID:       1,
-		Location: "Schlafzimmer",
-		Content:  books,
-	})
-}
-
-func ConnectDB() {
-	db, err := gorm.Open("sqlite3", "liberator.db")
-
-	if err != nil {
-		log.Panic("Failed to connect to database!")
-	}
-
-	db.AutoMigrate()
-}
-
 // Main function
 func main() {
 	log.Println("Starting liberator-backend ...")
-
-	seedData()
 
 	// Setup handlers
 	router := gin.Default()
