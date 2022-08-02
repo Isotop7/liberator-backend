@@ -12,8 +12,6 @@ import (
 )
 
 var DB *gorm.DB
-var books = []Book{}
-var shelves = []Shelve{}
 
 // Shelve
 type Shelve struct {
@@ -37,7 +35,7 @@ type Book struct {
 
 // Connect to database
 func connectDatabase() {
-	db, err := gorm.Open("sqlite3", "test.db")
+	db, err := gorm.Open("sqlite3", "liberator.db")
 
 	if err != nil {
 		panic("Failed to connect to database!")
@@ -49,19 +47,17 @@ func connectDatabase() {
 	DB = db
 }
 
-// Helper function
-func containsBook(books []Book, id uint) bool {
-	for _, book := range books {
-		if book.ID == uint(id) {
-			return true
-		}
-	}
-	return false
-}
-
 // List all Books
 func listBooksEndpoint(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, books)
+	var books = []Book{}
+	err := DB.Find(&books)
+	if err != nil {
+		ctx.JSON(http.StatusOK, books)
+	} else {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "error getting list of books",
+		})
+	}
 }
 
 // List single book
@@ -86,24 +82,27 @@ func listBookEndpoint(ctx *gin.Context) {
 		return
 	}
 
-	// Find correct item
-	for _, book := range books {
-		if book.ID == uint(id) {
-			ctx.IndentedJSON(http.StatusOK, book)
-			return
-		}
-	}
+	// Create and find book
+	var book = Book{}
+	dbErr := DB.Where("id = ?", id).First(&book)
 
-	// Default handler when no book is found
-	ctx.JSON(http.StatusNotFound, gin.H{
-		"message": "book not found",
-	})
+	// If book was found
+	if dbErr != nil && book.ID > 0 {
+		ctx.JSON(http.StatusOK, book)
+		return
+	} else {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "book not found",
+		})
+		return
+	}
 }
 
 // Create single book
 func createBookEndpoint(ctx *gin.Context) {
 	var newElement Book
 
+	// Bind body data to element
 	err := ctx.BindJSON(&newElement)
 	if err != nil {
 		switch err.(type) {
@@ -115,20 +114,104 @@ func createBookEndpoint(ctx *gin.Context) {
 		return
 	}
 
-	if containsBook(books, newElement.ID) {
+	// Check if element with id is already present in db and fail
+	var duplicateBook Book
+	_ = DB.Where("id = ?", newElement.ID).First(&duplicateBook)
+	if duplicateBook.ID == newElement.ID {
 		ctx.JSON(http.StatusConflict, gin.H{
 			"message": "duplicate element with id",
 			"data":    newElement,
 		})
+		return
 	} else {
-		books = append(books, newElement)
+		// Create element in db
+		DB.Create(&newElement)
 		ctx.JSON(http.StatusCreated, newElement)
 	}
 }
 
 // List all shelves
 func listShelvesEndpoint(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, shelves)
+	var shelves = []Shelve{}
+	err := DB.Find(&shelves)
+	if err != nil {
+		ctx.JSON(http.StatusOK, shelves)
+	} else {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "error getting list of shelves",
+		})
+	}
+}
+
+// List single shelve
+func listShelveEndpoint(ctx *gin.Context) {
+	// Get parameter from request
+	idParam := ctx.Param("id")
+
+	// Parse id to int
+	id, err := strconv.Atoi(idParam)
+	// If no int
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "shelve not found",
+		})
+		return
+	}
+	// If negative value
+	if id <= 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "shelve not found",
+		})
+		return
+	}
+
+	// Create and find shelve
+	var shelve = Shelve{}
+	dbErr := DB.Where("id = ?", id).First(&shelve)
+
+	// If shelve was found
+	if dbErr != nil && shelve.ID > 0 {
+		ctx.JSON(http.StatusOK, shelve)
+		return
+	} else {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "shelve not found",
+		})
+		return
+	}
+}
+
+// Create single shelve
+//TODO: Handle books in content body
+func createShelveEndpoint(ctx *gin.Context) {
+	var newElement Shelve
+
+	// Bind body data to element
+	err := ctx.BindJSON(&newElement)
+	if err != nil {
+		switch err.(type) {
+		case *json.UnmarshalTypeError:
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Invalid request",
+			})
+		}
+		return
+	}
+
+	// Check if element with id is already present in db and fail
+	var duplicateShelve Shelve
+	_ = DB.Where("id = ?", newElement.ID).First(&duplicateShelve)
+	if duplicateShelve.ID == newElement.ID {
+		ctx.JSON(http.StatusConflict, gin.H{
+			"message": "duplicate element with id",
+			"data":    newElement,
+		})
+		return
+	} else {
+		// Create element in db
+		DB.Create(&newElement)
+		ctx.JSON(http.StatusCreated, newElement)
+	}
 }
 
 // Main function
@@ -140,11 +223,17 @@ func main() {
 
 	// Setup handlers
 	router := gin.Default()
+
+	// Shelves
+	router.GET("/shelves", listShelvesEndpoint)
+	router.GET("/shelves/:id", listShelveEndpoint)
+	router.POST("/shelves", createShelveEndpoint)
+
+	// Books
 	router.GET("/books", listBooksEndpoint)
 	router.POST("/books", createBookEndpoint)
 	router.GET("/books/:id", listBookEndpoint)
-	router.GET("/shelves", listShelvesEndpoint)
 
-	// Server API
-	log.Fatal(router.Run())
+	// Serve API
+	log.Fatal(router.Run(":5000"))
 }
