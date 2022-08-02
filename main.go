@@ -7,28 +7,12 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	// "github.com/Isotop7/liberator-backend/models"
 )
 
-// Book
-type Book struct {
-	ID        int    `json:"id"`
-	Title     string `json:"title"`
-	Author    string `json:"author"`
-	Language  string `json:"language"`
-	Category  string `json:"category"`
-	ISBN10    string `json:"isbn10" binding:"len=10"`
-	ISBN13    string `json:"isbn13" binding:"len=13"`
-	PageCount int    `json:"page_count"`
-	Rating    int    `json:"rating"`
-}
-
-// Shelve
-type Shelve struct {
-	ID       int    `json:"id"`
-	Location string `json:"location"`
-	Content  []Book `json:"content"`
-}
-
+var DB *gorm.DB
 var books = []Book{}
 var shelves = []Shelve{}
 
@@ -135,6 +119,16 @@ func seedData() {
 		Location: "Schlafzimmer",
 		Content:  books,
 	})
+}
+
+func ConnectDB() {
+	db, err := gorm.Open("sqlite3", "liberator.db")
+
+	if err != nil {
+		log.Panic("Failed to connect to database!")
+	}
+
+	db.AutoMigrate()
 }
 
 // Main function
