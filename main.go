@@ -36,7 +36,7 @@ type Book struct {
 }
 
 // Connect to database
-func ConnectDatabase() {
+func connectDatabase() {
 	db, err := gorm.Open("sqlite3", "test.db")
 
 	if err != nil {
@@ -134,6 +134,9 @@ func listShelvesEndpoint(ctx *gin.Context) {
 // Main function
 func main() {
 	log.Println("Starting liberator-backend ...")
+
+	log.Println("Setup database ...")
+	connectDatabase()
 
 	// Setup handlers
 	router := gin.Default()
