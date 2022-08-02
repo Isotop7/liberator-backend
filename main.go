@@ -9,12 +9,45 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	// "github.com/Isotop7/liberator-backend/models"
 )
 
 var DB *gorm.DB
 var books = []Book{}
 var shelves = []Shelve{}
+
+// Shelve
+type Shelve struct {
+	gorm.Model
+	Location string `json:"location"`
+	Content  []Book `json:"content"`
+}
+
+// Book
+type Book struct {
+	gorm.Model
+	Title     string `json:"title"`
+	Author    string `json:"author"`
+	Language  string `json:"language"`
+	Category  string `json:"category"`
+	ISBN10    string `json:"isbn10" binding:"len=10"`
+	ISBN13    string `json:"isbn13" binding:"len=13"`
+	PageCount int    `json:"page_count"`
+	Rating    int    `json:"rating"`
+}
+
+// Connect to database
+func ConnectDatabase() {
+	db, err := gorm.Open("sqlite3", "test.db")
+
+	if err != nil {
+		panic("Failed to connect to database!")
+	}
+
+	db.AutoMigrate(&Book{})
+	db.AutoMigrate(&Shelve{})
+
+	DB = db
+}
 
 // Helper function
 func containsBook(books []Book, id int) bool {
