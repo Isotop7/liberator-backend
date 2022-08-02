@@ -130,6 +130,87 @@ func createBookEndpoint(ctx *gin.Context) {
 	}
 }
 
+// Update single book
+func updateBookEndpoint(ctx *gin.Context) {
+	// Get parameter from request
+	idParam := ctx.Param("id")
+
+	// Parse id to int
+	id, err := strconv.Atoi(idParam)
+	// If no int
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "book not found",
+		})
+		return
+	}
+	// If negative value
+	if id <= 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "book not found",
+		})
+		return
+	}
+
+	// Create and find book
+	var book = Book{}
+	dbErr := DB.Where("id = ?", id).First(&book)
+
+	// If book was found
+	if dbErr != nil && book.ID > 0 {
+		bindErr := ctx.BindJSON(&book)
+		if bindErr != nil {
+			ctx.JSON(http.StatusMethodNotAllowed, gin.H{
+				"message": bindErr.Error(),
+			})
+			return
+		}
+		DB.Save(&book)
+		ctx.JSON(http.StatusOK, book)
+		return
+	} else {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "book not found",
+		})
+		return
+	}
+}
+
+func deleteBookEndpoint(ctx *gin.Context) {
+	// Get parameter from request
+	idParam := ctx.Param("id")
+
+	// Parse id to int
+	id, err := strconv.Atoi(idParam)
+	// If no int
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "book not found",
+		})
+		return
+	}
+	// If negative value
+	if id <= 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "book not found",
+		})
+		return
+	}
+
+	// Create and find book
+	var book = Book{}
+	dbErr := DB.Where("id = ?", id).Delete(&book)
+	if dbErr != nil {
+		ctx.JSON(http.StatusAccepted, gin.H{
+			"message": "book with id '" + idParam + "' deleted",
+		})
+	} else {
+		ctx.JSON(http.StatusMethodNotAllowed, gin.H{
+			"message": dbErr,
+		})
+	}
+}
+
 // List all shelves
 func listShelvesEndpoint(ctx *gin.Context) {
 	var shelves = []Shelve{}
@@ -233,6 +314,8 @@ func main() {
 	router.GET("/books", listBooksEndpoint)
 	router.POST("/books", createBookEndpoint)
 	router.GET("/books/:id", listBookEndpoint)
+	router.PUT("/books/:id", updateBookEndpoint)
+	router.DELETE("/books/:id", deleteBookEndpoint)
 
 	// Serve API
 	log.Fatal(router.Run(":5000"))
